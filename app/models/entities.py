@@ -1,6 +1,17 @@
 from dataclasses import dataclass, field
 
+from app.domain.errors import ValidationError
 from app.models.enums import TicketStatus
+
+
+@dataclass
+class User:
+    """Un usuario del sistema (solicitante, tecnico, etc.)."""
+
+    id: int
+    name: str
+    email: str
+    role: str = "REQUESTER"
 
 
 @dataclass
@@ -31,3 +42,30 @@ class Ticket:
     assignee_id: int | None = None
     status: TicketStatus = TicketStatus.OPEN
     comments: list[Comment] = field(default_factory=list)
+    _tags: list[str] = field(default_factory=list, init=False, repr=False)
+
+    @property
+    def tags(self) -> tuple[str, ...]:
+        """Etiquetas del ticket como tupla de solo lectura.
+
+        No expone la lista interna directamente: quien llame a `tags`
+        recibe una copia inmutable, por lo que no puede mutar
+        `_tags` desde afuera.
+        """
+        return tuple(self._tags)
+
+    def add_tag(self, tag: str) -> None:
+        """Agrega una etiqueta al ticket, validando y normalizando.
+
+        - Normaliza con strip().lower() para evitar duplicados por
+          mayusculas o espacios ("Urgente" y " urgente " son la misma).
+        - Rechaza valores vacios (o solo espacios) con ValidationError.
+        - Ignora silenciosamente una etiqueta que ya existe (sin
+          duplicados), en lugar de lanzar error, ya que agregar dos
+          veces la misma etiqueta es una operacion idempotente.
+        """
+        normalized = tag.strip().lower()
+        if not normalized:
+            raise ValidationError("La etiqueta no puede estar vacia.")
+        if normalized not in self._tags:
+            self._tags.append(normalized)

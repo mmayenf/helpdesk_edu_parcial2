@@ -1,0 +1,25 @@
+--- (a) Tickets abiertos con nombre del solicitante ---
+id | title | status | requester_name
+----------------------------------------
+1 | No imprime | Open | Ana Lopez
+2 | No enciende | Open | Bruno Perez
+4 | Pantalla azul | Open | Bruno Perez
+
+--- (b) Conteo de tickets por tecnico asignado ---
+technician_id | technician_name | ticket_count
+----------------------------------------
+3 | Carlos Diaz | 2
+4 | Diana Ruiz | 2
+
+--- (c) Tickets sin comentarios (NOT EXISTS) ---
+id | title
+----------------------------------------
+2 | No enciende
+4 | Pantalla azul
+5 | Falta licencia
+
+--- (d) Demo ON DELETE CASCADE dentro de BEGIN/ROLLBACK (ticket_id = 1) ---
+(1) historial_inicial = 2
+(2) historial_tras_delete = 0
+(3) historial_tras_rollback = 2
+(4) ticket 1 sigue existiendo tras ROLLBACK: si
