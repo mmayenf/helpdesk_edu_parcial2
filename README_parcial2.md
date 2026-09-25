@@ -71,26 +71,60 @@ no un log completo de asignaciones pasadas).
 
 **Archivos:** `docs/database/schema.sql`, `docs/database/queries_parcial2.sql`
 
-**Reproducir (en tu propia instancia de PostgreSQL):**
+**Reproducir en tu propia instancia de PostgreSQL (recomendado para la entrega final):**
 ```bash
 psql -U <usuario> -d <basededatos> -f docs/database/schema.sql
-# cargar datos de prueba propios...
+psql -U <usuario> -d <basededatos> -f docs/database/seed_datos_prueba.sql
 psql -U <usuario> -d <basededatos> -f docs/database/queries_parcial2.sql
 ```
 
 Para la consulta (d), reemplaza el parametro `:ticket_id_con_historial`
-por el id de un ticket que ya tenga filas en `ticket_history` antes de
-ejecutar el bloque `BEGIN ... ROLLBACK`.
+por el id de un ticket que ya tenga filas en `ticket_history` (con los
+datos de `seed_datos_prueba.sql`, ese id es `1`) antes de ejecutar el
+bloque `BEGIN ... ROLLBACK`.
 
-**Resultado:** *(pendiente — completar con la salida real de tu
-PostgreSQL: pega aqui aqui los conteos de las 4 consultas, en particular
-el conteo inicial > 0, el conteo tras `DELETE` = 0, y el conteo tras
-`ROLLBACK` = valor original)*.
+**Resultado (evidencia generada en este entorno con SQLite, como
+sustituto de PostgreSQL — ver limitacion abajo):**
+
+Datos de prueba: 4 usuarios, 5 tickets, 2 comentarios, 3 filas de
+historial (ver `docs/database/seed_datos_prueba.sql`). Salida completa
+en `docs/database/evidencia/salida_queries_parcial2.txt`:
+
+```
+--- (a) Tickets abiertos con nombre del solicitante ---
+id | title         | status | requester_name
+1  | No imprime    | Open   | Ana Lopez
+2  | No enciende   | Open   | Bruno Perez
+4  | Pantalla azul | Open   | Bruno Perez
+
+--- (b) Conteo de tickets por tecnico asignado ---
+technician_id | technician_name | ticket_count
+3             | Carlos Diaz     | 2
+4             | Diana Ruiz      | 2
+
+--- (c) Tickets sin comentarios (NOT EXISTS) ---
+id | title
+2  | No enciende
+4  | Pantalla azul
+5  | Falta licencia
+
+--- (d) Demo ON DELETE CASCADE dentro de BEGIN/ROLLBACK (ticket_id = 1) ---
+(1) historial_inicial      = 2
+(2) historial_tras_delete  = 0   <- la cascada borro el historial del ticket
+(3) historial_tras_rollback = 2  <- el ROLLBACK devolvio todo a su estado original
+(4) ticket 1 sigue existiendo tras ROLLBACK: si
+```
 
 **Limitacion:** este entorno de desarrollo no tiene un servidor
-PostgreSQL disponible para generar la evidencia automaticamente; las
-consultas estan escritas y documentadas, pero la ejecucion y captura de
-salida debe hacerse manualmente contra la base de datos del proyecto.
+PostgreSQL disponible, asi que la evidencia de arriba se genero
+ejecutando una version adaptada de las mismas 4 consultas contra
+SQLite (mismo esquema, mismos datos, misma logica de JOIN / HAVING /
+NOT EXISTS / ON DELETE CASCADE / BEGIN-ROLLBACK). El SQL de
+`queries_parcial2.sql` esta escrito para PostgreSQL (sintaxis
+estandar); antes de la entrega final se recomienda **volver a
+ejecutarlo tal cual contra un PostgreSQL real** para confirmar que los
+resultados coinciden (deberian ser los mismos, ya que las 4 consultas
+usan SQL estandar sin funciones especificas de un motor).
 
 ## 5. Consulta agregada y persistencia con SQLAlchemy
 
@@ -121,5 +155,5 @@ igual en Postgres.
 python -m pytest -v
 ```
 
-23/23 pruebas pasando (6 de la Semana 9 + 17 nuevas de la SERIE II). Ver
+27/27 pruebas pasando (6 de la Semana 9 + 21 nuevas de la SERIE II). Ver
 `evidencia_pytest.txt` para la salida completa.
