@@ -5,6 +5,16 @@ from app.models.enums import TicketStatus
 
 
 @dataclass
+class User:
+    """Un usuario del sistema (solicitante, tecnico, etc.)."""
+
+    id: int
+    name: str
+    email: str
+    role: str = "REQUESTER"
+
+
+@dataclass
 class Comment:
     """Un comentario de seguimiento asociado a un ticket."""
 

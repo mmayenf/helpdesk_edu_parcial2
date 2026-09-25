@@ -1,13 +1,19 @@
-from app.models.entities import Comment, Ticket
+from app.domain.errors import NotFoundError
+from app.models.entities import Comment, Ticket, User
 from app.models.enums import TicketStatus
+from app.services.users import UserService
 
 
 class TicketService:
     """Servicio de tickets del sistema HelpDesk EDU."""
 
-    def __init__(self) -> None:
+    def __init__(self, users: UserService | None = None) -> None:
         self._tickets: list[Ticket] = []
         self._next_id: int = 1
+        # Servicio de usuarios inyectado (o uno propio por defecto). No se
+        # accede a repositorios de otros servicios directamente: siempre
+        # a traves de self._users.require(id).
+        self._users: UserService = users if users is not None else UserService()
 
     # ------------------------------------------------------------------
     # Codigo de semanas anteriores (creacion y relaciones)
@@ -36,27 +42,34 @@ class TicketService:
 
     def assign_technician(self, ticket_id: int, technician_id: int) -> Ticket:
         """Asigna un tecnico a un ticket existente."""
-        ticket = self._get_ticket_or_raise(ticket_id)
+        ticket = self.require(ticket_id)
         ticket.assignee_id = technician_id
         return ticket
 
     def add_comment(self, ticket_id: int, author_id: int, text: str) -> Ticket:
         """Agrega un comentario de seguimiento al ticket."""
-        ticket = self._get_ticket_or_raise(ticket_id)
+        ticket = self.require(ticket_id)
         ticket.comments.append(Comment(author_id=author_id, text=text))
         return ticket
 
     def update_status(self, ticket_id: int, status: str | TicketStatus) -> Ticket:
         """Actualiza el estado del ticket, normalizando el valor recibido."""
-        ticket = self._get_ticket_or_raise(ticket_id)
+        ticket = self.require(ticket_id)
         ticket.status = TicketStatus.from_value(status)
         return ticket
 
-    def _get_ticket_or_raise(self, ticket_id: int) -> Ticket:
+    def require(self, ticket_id: int) -> Ticket:
+        """Devuelve el ticket con ticket_id o lanza NotFoundError.
+
+        Punto unico de busqueda de tickets: todos los metodos que
+        necesitan un ticket existente pasan por aqui, de modo que el
+        error de "ticket inexistente" se propaga siempre de la misma
+        forma (NotFoundError) sin duplicar la validacion.
+        """
         for ticket in self._tickets:
             if ticket.id == ticket_id:
                 return ticket
-        raise ValueError(f"No existe un ticket con id {ticket_id}")
+        raise NotFoundError(f"No existe un ticket con id {ticket_id}")
 
     # ------------------------------------------------------------------
     # Consultas de la Semana 9
@@ -94,3 +107,28 @@ class TicketService:
             ticket for ticket in self._tickets
             if ticket.status == normalized_status
         ]
+
+    # ------------------------------------------------------------------
+    # Observadores - Ejercicio 2 (SERIE II)
+    # ------------------------------------------------------------------
+    def watchers(self, ticket_id: int) -> list[User]:
+        """Devuelve los observadores de un ticket.
+
+        Un observador es alguien interesado en el avance del ticket: el
+        solicitante siempre lo es, y el tecnico asignado (si existe) se
+        agrega tambien. No se repiten usuarios con el mismo id.
+
+        Solo usa servicios (self.require y self._users.require), nunca
+        accede a la lista interna de otro servicio directamente.
+        """
+        ticket = self.require(ticket_id)
+
+        watchers: list[User] = [self._users.require(ticket.requester_id)]
+
+        if ticket.assignee_id is not None:
+            assignee = self._users.require(ticket.assignee_id)
+            already_present = any(w.id == assignee.id for w in watchers)
+            if not already_present:
+                watchers.append(assignee)
+
+        return watchers
