@@ -5,6 +5,19 @@ ejercicios de la SERIE II, sus resultados y las limitaciones conocidas.
 
 ## Estructura de ramas y commits
 
+```
+main         <- solo avanza mediante Pull Request revisado
+  ^
+  | PR
+developer    <- rama de integracion continua
+  ^
+  |-- feature/etiquetas-encapsuladas
+  |-- feature/observadores-watchers
+  |-- feature/excepciones-polimorfismo
+  |-- feature/sql-integridad-referencial
+  |-- feature/agregacion-sqlalchemy
+```
+
 | Rama | Ejercicio | Commits principales |
 |---|---|---|
 | `feature/etiquetas-encapsuladas` | 1. Etiquetas y encapsulamiento | `feat(errors): ...`, `feat(ticket): ...` |
@@ -13,8 +26,10 @@ ejercicios de la SERIE II, sus resultados y las limitaciones conocidas.
 | `feature/sql-integridad-referencial` | 4. SQL e integridad referencial | `docs(sql): ...` |
 | `feature/agregacion-sqlalchemy` | 5. Consulta agregada y SQLAlchemy | `feat(repositories): ...` |
 
-Cada rama se integro a `main` con `git merge --no-ff`, dejando un commit
-de merge visible por ejercicio (`git log --oneline --graph` lo muestra).
+Cada rama `feature/*` se integro a **`developer`** con `git merge --no-ff`
+(commit de merge visible por ejercicio). `developer` llego a **`main`**
+unicamente mediante un **Pull Request revisado**, siguiendo el RNF-05
+de la especificacion del proyecto.
 
 ## 1. Etiquetas y encapsulamiento
 
