@@ -1,19 +1,29 @@
-from app.domain.errors import NotFoundError
+from app.domain.errors import DuplicateAssignmentError, NotFoundError
 from app.models.entities import Comment, Ticket, User
 from app.models.enums import TicketStatus
+from app.services.notifications import Notifier
 from app.services.users import UserService
 
 
 class TicketService:
     """Servicio de tickets del sistema HelpDesk EDU."""
 
-    def __init__(self, users: UserService | None = None) -> None:
+    def __init__(
+        self,
+        users: UserService | None = None,
+        notifier: Notifier | None = None,
+    ) -> None:
         self._tickets: list[Ticket] = []
         self._next_id: int = 1
         # Servicio de usuarios inyectado (o uno propio por defecto). No se
         # accede a repositorios de otros servicios directamente: siempre
         # a traves de self._users.require(id).
         self._users: UserService = users if users is not None else UserService()
+        # Canal de notificaciones inyectado (polimorfico via Notifier).
+        # Si no se provee ninguno, simplemente no se notifica: no hay
+        # condicionales por tipo, solo se llama a notifier.notify(...)
+        # cuando existe.
+        self._notifier: Notifier | None = notifier
 
     # ------------------------------------------------------------------
     # Codigo de semanas anteriores (creacion y relaciones)
@@ -40,11 +50,34 @@ class TicketService:
         self._next_id += 1
         return ticket
 
-    def assign_technician(self, ticket_id: int, technician_id: int) -> Ticket:
-        """Asigna un tecnico a un ticket existente."""
+    def assign(self, ticket_id: int, technician_id: int) -> Ticket:
+        """Asigna un tecnico a un ticket existente.
+
+        Si el ticket ya tiene asignado a ese mismo tecnico, la operacion
+        se rechaza con DuplicateAssignmentError *antes* de modificar el
+        ticket o de notificar a nadie: no hay ningun efecto secundario
+        cuando la asignacion es rechazada.
+        """
         ticket = self.require(ticket_id)
+
+        if ticket.assignee_id == technician_id:
+            raise DuplicateAssignmentError(
+                f"El ticket {ticket_id} ya esta asignado al tecnico {technician_id}."
+            )
+
         ticket.assignee_id = technician_id
+
+        if self._notifier is not None:
+            self._notifier.notify(
+                "ticket_assigned",
+                ticket_id=ticket.id,
+                technician_id=technician_id,
+            )
+
         return ticket
+
+    # Alias retrocompatible con el codigo de semanas anteriores.
+    assign_technician = assign
 
     def add_comment(self, ticket_id: int, author_id: int, text: str) -> Ticket:
         """Agrega un comentario de seguimiento al ticket."""
